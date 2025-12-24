@@ -1,0 +1,223 @@
+# ⚠️ VULNERABLE BY DESIGN - DO NOT USE IN PRODUCTION ⚠️
+#
+# Docker Compose with INTENTIONAL vulnerabilities:
+# - Privileged containers
+# - Host network mode
+# - Sensitive mounts
+# - No resource limits
+# - Root users
+# - Hardcoded credentials
+
+version: '3.8'
+
+services:
+  # ============================================================
+  # VULNERABILITY: Privileged container with host access
+  # ============================================================
+  backend:
+    build: ../backend
+    image: death-cocktail-backend:latest
+    container_name: death-backend
+
+    # VULNERABILITY: Privileged mode - container can escape to host!
+    privileged: true
+
+    # VULNERABILITY: Running as root
+    user: root
+
+    # VULNERABILITY: Host network - no network isolation
+    network_mode: host
+
+    # VULNERABILITY: All capabilities added
+    cap_add:
+      - ALL
+
+    # VULNERABILITY: Security options disabled
+    security_opt:
+      - seccomp:unconfined
+      - apparmor:unconfined
+      - no-new-privileges:false
+
+    # VULNERABILITY: Sensitive host paths mounted
+    volumes:
+      - /:/host:rw                    # CRITICAL: Entire host filesystem!
+      - /var/run/docker.sock:/var/run/docker.sock  # Docker socket - can spawn containers
+      - /etc/passwd:/etc/passwd:ro    # Host user information
+      - /etc/shadow:/etc/shadow:ro    # CRITICAL: Password hashes!
+      - /root/.ssh:/root/.ssh:rw      # SSH keys
+      - /home:/home:rw                # All user home directories
+      - /var/log:/var/log:rw          # All system logs
+
+    # VULNERABILITY: No resource limits - DoS possible
+    # Missing: mem_limit, cpus, pids_limit
+
+    # VULNERABILITY: Hardcoded credentials in environment
+    environment:
+      - DB_PASSWORD=admin123
+      - API_SECRET=super_secret_key_12345
+      - JWT_SECRET=jwt_secret_never_change
+      - AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE
+      - AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+      - STRIPE_API_KEY=sk_live_xxxxxxxxxxxxx
+      - ADMIN_PASSWORD=admin123!@#
+      - ENCRYPTION_KEY=0123456789abcdef
+      - DATABASE_URL=postgresql://root:password123@postgres:5432/prod
+
+    ports:
+      - "0.0.0.0:8080:8080"  # VULNERABILITY: Binding to all interfaces
+
+    # VULNERABILITY: PID mode host - can see/kill host processes
+    pid: host
+
+    # VULNERABILITY: IPC mode host - shared memory access
+    ipc: host
+
+  # ============================================================
+  # VULNERABILITY: Database with weak configuration
+  # ============================================================
+  postgres:
+    image: postgres:13
+    container_name: death-postgres
+    privileged: true
+
+    environment:
+      # VULNERABILITY: Weak/default credentials
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: password123
+      POSTGRES_DB: production
+
+    ports:
+      # VULNERABILITY: Database port exposed to all interfaces
+      - "0.0.0.0:5432:5432"
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - /:/host:ro  # VULNERABILITY: Host filesystem access
+
+    # VULNERABILITY: No SSL/TLS configured
+    command: postgres -c ssl=off -c log_statement=all
+
+  # ============================================================
+  # VULNERABILITY: Redis without authentication
+  # ============================================================
+  redis:
+    image: redis:6
+    container_name: death-redis
+    privileged: true
+
+    ports:
+      # VULNERABILITY: Redis exposed without auth
+      - "0.0.0.0:6379:6379"
+
+    # VULNERABILITY: Protected mode disabled, no password
+    command: redis-server --protected-mode no --requirepass ""
+
+    volumes:
+      - redis_data:/data
+      - /var/run/docker.sock:/var/run/docker.sock  # Docker socket!
+
+  # ============================================================
+  # VULNERABILITY: Elasticsearch without security
+  # ============================================================
+  elasticsearch:
+    image: elasticsearch:7.10.0
+    container_name: death-elasticsearch
+    privileged: true
+
+    environment:
+      # VULNERABILITY: Security disabled
+      - xpack.security.enabled=false
+      - discovery.type=single-node
+
+    ports:
+      # VULNERABILITY: Exposed without authentication
+      - "0.0.0.0:9200:9200"
+      - "0.0.0.0:9300:9300"
+
+  # ============================================================
+  # VULNERABILITY: MongoDB without authentication
+  # ============================================================
+  mongodb:
+    image: mongo:4.4
+    container_name: death-mongodb
+    privileged: true
+
+    # VULNERABILITY: No auth enabled (default)
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ""
+      MONGO_INITDB_ROOT_PASSWORD: ""
+
+    ports:
+      - "0.0.0.0:27017:27017"
+
+    command: mongod --bind_ip_all  # VULNERABILITY: Binds to all IPs
+
+  # ============================================================
+  # VULNERABILITY: Jenkins with unsafe configuration
+  # ============================================================
+  jenkins:
+    image: jenkins/jenkins:2.289.1  # CVE-2021-21685 and others
+    container_name: death-jenkins
+    privileged: true
+    user: root
+
+    environment:
+      # VULNERABILITY: Skip setup wizard
+      - JAVA_OPTS=-Djenkins.install.runSetupWizard=false
+
+    ports:
+      - "0.0.0.0:8081:8080"
+      - "0.0.0.0:50000:50000"
+
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /:/host:rw
+
+  # ============================================================
+  # VULNERABILITY: Exposed admin console without auth
+  # ============================================================
+  adminer:
+    image: adminer
+    container_name: death-adminer
+    ports:
+      - "0.0.0.0:9090:8080"  # Database admin UI exposed!
+
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres
+      ADMINER_DESIGN: nette
+
+  # ============================================================
+  # VULNERABILITY: Debug/Profiling tools exposed
+  # ============================================================
+  debug-console:
+    image: nicolaka/netshoot
+    container_name: death-debug
+    privileged: true
+    network_mode: host
+    pid: host
+
+    volumes:
+      - /:/host:rw
+      - /var/run/docker.sock:/var/run/docker.sock
+
+    command: sleep infinity
+
+    # VULNERABILITY: All capabilities for network debugging
+    cap_add:
+      - NET_ADMIN
+      - SYS_PTRACE
+      - SYS_ADMIN
+
+volumes:
+  postgres_data:
+  redis_data:
+  jenkins_home:
+
+# ============================================================
+# VULNERABILITY: Default bridge network (no isolation)
+# ============================================================
+networks:
+  default:
+    driver: bridge
+    # No custom network segmentation

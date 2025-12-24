@@ -1,0 +1,212 @@
+# ⚠️ VULNERABLE BY DESIGN - DO NOT USE IN PRODUCTION ⚠️
+#
+# Kubernetes Deployment with INTENTIONAL vulnerabilities:
+# - Privileged containers
+# - No security context
+# - Host namespace access
+# - Sensitive mounts
+# - No resource limits
+# - Hardcoded secrets
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: death-cocktail-backend
+  labels:
+    app: death-cocktail
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: death-cocktail
+  template:
+    metadata:
+      labels:
+        app: death-cocktail
+    spec:
+      # ============================================================
+      # VULNERABILITY: Using default service account (often overprivileged)
+      # ============================================================
+      serviceAccountName: default
+
+      # ============================================================
+      # VULNERABILITY: Host namespaces shared
+      # ============================================================
+      hostNetwork: true      # Uses host network - no network isolation
+      hostPID: true          # Can see/kill host processes
+      hostIPC: true          # Shared memory access
+
+      # ============================================================
+      # VULNERABILITY: Dangerous node selector
+      # ============================================================
+      nodeSelector:
+        node-role.kubernetes.io/master: ""  # Scheduling on master node!
+
+      containers:
+      - name: backend
+        image: death-cocktail-backend:latest
+
+        # VULNERABILITY: Always pull might bypass image verification
+        imagePullPolicy: Always
+
+        ports:
+        - containerPort: 8080
+          hostPort: 8080      # VULNERABILITY: Using host port
+
+        # ============================================================
+        # VULNERABILITY: Privileged security context
+        # ============================================================
+        securityContext:
+          privileged: true                # Full host access!
+          runAsUser: 0                    # Running as root
+          runAsGroup: 0
+          allowPrivilegeEscalation: true  # Can escalate to root
+          readOnlyRootFilesystem: false
+          capabilities:
+            add:
+              - ALL                       # All capabilities!
+            drop: []                      # Dropping nothing
+
+        # ============================================================
+        # VULNERABILITY: Hardcoded secrets in environment
+        # ============================================================
+        env:
+        - name: DB_PASSWORD
+          value: "admin123"               # Hardcoded password!
+        - name: API_KEY
+          value: "sk_live_xxxxxxxxxxxxx"
+        - name: JWT_SECRET
+          value: "super_secret_jwt_key"
+        - name: AWS_ACCESS_KEY_ID
+          value: "AKIAIOSFODNN7EXAMPLE"
+        - name: AWS_SECRET_ACCESS_KEY
+          value: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+        - name: ENCRYPTION_KEY
+          value: "0123456789abcdef0123456789abcdef"
+        - name: ADMIN_PASSWORD
+          value: "admin123!@#"
+
+        # ============================================================
+        # VULNERABILITY: Dangerous volume mounts
+        # ============================================================
+        volumeMounts:
+        - name: host-root
+          mountPath: /host
+          readOnly: false                 # Read-write access to host!
+
+        - name: docker-socket
+          mountPath: /var/run/docker.sock # Can spawn containers
+
+        - name: host-etc
+          mountPath: /etc/host-etc        # Host configuration files
+
+        - name: service-account-token
+          mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+
+        - name: kubelet-config
+          mountPath: /var/lib/kubelet     # Kubelet configuration
+
+        # ============================================================
+        # VULNERABILITY: No resource limits - DoS possible
+        # ============================================================
+        resources: {}
+        # Missing:
+        # limits:
+        #   memory: "512Mi"
+        #   cpu: "500m"
+        # requests:
+        #   memory: "256Mi"
+        #   cpu: "250m"
+
+        # ============================================================
+        # VULNERABILITY: No probes - unhealthy pods run indefinitely
+        # ============================================================
+        # Missing: livenessProbe, readinessProbe
+
+      # ============================================================
+      # VULNERABILITY: Dangerous volumes
+      # ============================================================
+      volumes:
+      - name: host-root
+        hostPath:
+          path: /
+          type: Directory
+
+      - name: docker-socket
+        hostPath:
+          path: /var/run/docker.sock
+          type: Socket
+
+      - name: host-etc
+        hostPath:
+          path: /etc
+          type: Directory
+
+      - name: service-account-token
+        hostPath:
+          path: /var/run/secrets/kubernetes.io/serviceaccount
+          type: Directory
+
+      - name: kubelet-config
+        hostPath:
+          path: /var/lib/kubelet
+          type: Directory
+
+---
+# ============================================================
+# VULNERABILITY: Over-privileged Service Account
+# ============================================================
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: death-cocktail-sa
+automountServiceAccountToken: true  # Token auto-mounted
+
+---
+# ============================================================
+# VULNERABILITY: Cluster-wide admin permissions
+# ============================================================
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: death-cocktail-admin
+subjects:
+- kind: ServiceAccount
+  name: default
+  namespace: default
+roleRef:
+  kind: ClusterRole
+  name: cluster-admin     # Full cluster admin!
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# ============================================================
+# VULNERABILITY: Pod can exec into any pod
+# ============================================================
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: pod-exec-role
+rules:
+- apiGroups: [""]
+  resources: ["pods", "pods/exec", "pods/log", "secrets", "configmaps"]
+  verbs: ["*"]
+- apiGroups: [""]
+  resources: ["nodes"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["apps"]
+  resources: ["*"]
+  verbs: ["*"]
+
+---
+# ============================================================
+# VULNERABILITY: No Network Policy - all traffic allowed
+# ============================================================
+# Missing NetworkPolicy means all pods can communicate with everything
+
+---
+# ============================================================
+# VULNERABILITY: No Pod Security Policy/Standards
+# ============================================================
+# Missing PodSecurityPolicy or Pod Security Admission
+# Allows privileged pods, host access, etc.

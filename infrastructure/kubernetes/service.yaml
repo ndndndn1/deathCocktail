@@ -1,0 +1,237 @@
+# ⚠️ VULNERABLE BY DESIGN - DO NOT USE IN PRODUCTION ⚠️
+#
+# Kubernetes Service with INTENTIONAL vulnerabilities:
+# - NodePort exposing internal services
+# - No network policies
+# - Debug endpoints exposed
+# - Internal services accessible externally
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: death-cocktail-backend
+  labels:
+    app: death-cocktail
+spec:
+  type: NodePort  # VULNERABILITY: Exposes on every node
+  ports:
+  - name: http
+    port: 8080
+    targetPort: 8080
+    nodePort: 30080  # VULNERABILITY: Fixed nodePort - predictable
+  - name: debug
+    port: 9090
+    targetPort: 9090
+    nodePort: 30090  # VULNERABILITY: Debug port exposed
+  - name: jmx
+    port: 1099
+    targetPort: 1099
+    nodePort: 31099  # VULNERABILITY: JMX exposed (RCE possible)
+  selector:
+    app: death-cocktail
+
+---
+# ============================================================
+# VULNERABILITY: Database Exposed via NodePort
+# ============================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-exposed
+spec:
+  type: NodePort
+  ports:
+  - port: 5432
+    nodePort: 30432  # VULNERABILITY: Database on NodePort!
+  selector:
+    app: postgres
+
+---
+# ============================================================
+# VULNERABILITY: Redis Exposed via NodePort
+# ============================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-exposed
+spec:
+  type: NodePort
+  ports:
+  - port: 6379
+    nodePort: 30379  # VULNERABILITY: Redis on NodePort!
+  selector:
+    app: redis
+
+---
+# ============================================================
+# VULNERABILITY: Kubernetes Dashboard Exposed
+# ============================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: kubernetes-dashboard-exposed
+  namespace: kubernetes-dashboard
+spec:
+  type: NodePort
+  ports:
+  - port: 443
+    targetPort: 8443
+    nodePort: 30443  # VULNERABILITY: Dashboard on NodePort!
+  selector:
+    k8s-app: kubernetes-dashboard
+
+---
+# ============================================================
+# VULNERABILITY: Internal Admin Service Exposed
+# ============================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: internal-admin
+  annotations:
+    # VULNERABILITY: Exposed as "internal" but actually external
+    description: "Internal admin service - definitely not exposed"
+spec:
+  type: LoadBalancer  # VULNERABILITY: LoadBalancer = public IP!
+  ports:
+  - name: admin
+    port: 9090
+    targetPort: 9090
+  - name: metrics
+    port: 9091
+    targetPort: 9091
+  - name: debug
+    port: 9092
+    targetPort: 9092
+  selector:
+    app: admin
+
+---
+# ============================================================
+# VULNERABILITY: Actuator/Debug Endpoints Service
+# ============================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: actuator-service
+spec:
+  type: LoadBalancer  # VULNERABILITY: Public access to actuators!
+  ports:
+  - name: actuator
+    port: 8080
+    targetPort: 8080
+  selector:
+    app: death-cocktail
+
+---
+# ============================================================
+# VULNERABILITY: Jenkins Exposed
+# ============================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: jenkins-exposed
+spec:
+  type: LoadBalancer
+  ports:
+  - name: web
+    port: 8080
+    targetPort: 8080
+  - name: agent
+    port: 50000
+    targetPort: 50000
+  selector:
+    app: jenkins
+
+---
+# ============================================================
+# VULNERABILITY: Elasticsearch Exposed
+# ============================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: elasticsearch-exposed
+spec:
+  type: LoadBalancer
+  ports:
+  - name: http
+    port: 9200
+    targetPort: 9200
+  - name: transport
+    port: 9300
+    targetPort: 9300
+  selector:
+    app: elasticsearch
+
+---
+# ============================================================
+# VULNERABILITY: MongoDB Exposed
+# ============================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: mongodb-exposed
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 27017
+    targetPort: 27017
+  selector:
+    app: mongodb
+
+---
+# ============================================================
+# VULNERABILITY: Ingress with no authentication
+# ============================================================
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: death-cocktail-ingress
+  annotations:
+    # VULNERABILITY: No authentication
+    nginx.ingress.kubernetes.io/auth-type: ""
+    # VULNERABILITY: Allows any backend
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
+    # VULNERABILITY: No rate limiting
+    nginx.ingress.kubernetes.io/limit-rps: "0"
+    # VULNERABILITY: CORS allows everything
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "*"
+    nginx.ingress.kubernetes.io/cors-allow-credentials: "true"
+spec:
+  rules:
+  - host: "*"  # VULNERABILITY: Wildcard host
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: death-cocktail-backend
+            port:
+              number: 8080
+
+      # VULNERABILITY: Internal paths exposed
+      - path: /actuator
+        pathType: Prefix
+        backend:
+          service:
+            name: actuator-service
+            port:
+              number: 8080
+
+      - path: /admin
+        pathType: Prefix
+        backend:
+          service:
+            name: internal-admin
+            port:
+              number: 9090
+
+      - path: /internal
+        pathType: Prefix
+        backend:
+          service:
+            name: internal-admin
+            port:
+              number: 9090
