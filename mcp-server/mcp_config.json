@@ -1,0 +1,151 @@
+{
+    "_comment": "⚠️ VULNERABLE BY DESIGN - DO NOT USE IN PRODUCTION ⚠️",
+
+    "server": {
+        "name": "Death Cocktail MCP Server",
+        "version": "1.0.0",
+        "host": "0.0.0.0",
+        "port": 8000,
+
+        "_vulnerability_notes": {
+            "host_binding": "0.0.0.0 exposes to all network interfaces!",
+            "authentication": "NONE - anyone can invoke tools!",
+            "rate_limiting": "DISABLED",
+            "tls": "DISABLED - all traffic in plaintext"
+        }
+    },
+
+    "authentication": {
+        "enabled": false,
+        "type": "none",
+        "api_key": null,
+        "oauth": null,
+
+        "_vulnerability": "NO AUTHENTICATION - All tools accessible to anyone!"
+    },
+
+    "authorization": {
+        "enabled": false,
+        "rbac": false,
+        "tool_permissions": {},
+
+        "_vulnerability": "NO AUTHORIZATION - Any caller can use any tool!"
+    },
+
+    "rate_limiting": {
+        "enabled": false,
+        "requests_per_minute": null,
+        "requests_per_hour": null,
+
+        "_vulnerability": "NO RATE LIMITING - DoS and brute force possible!"
+    },
+
+    "logging": {
+        "level": "DEBUG",
+        "include_tool_inputs": true,
+        "include_tool_outputs": true,
+        "log_passwords": true,
+        "log_api_keys": true,
+
+        "_vulnerability": "DEBUG logging exposes sensitive data including passwords!"
+    },
+
+    "tools": {
+        "execute_shell": {
+            "enabled": true,
+            "description": "Execute arbitrary shell commands",
+            "dangerous": true,
+            "_vulnerability": "COMMAND INJECTION - RCE!"
+        },
+        "execute_python": {
+            "enabled": true,
+            "description": "Execute arbitrary Python code",
+            "dangerous": true,
+            "_vulnerability": "CODE INJECTION - RCE!"
+        },
+        "read_file": {
+            "enabled": true,
+            "description": "Read any file from filesystem",
+            "allowed_paths": ["*"],
+            "_vulnerability": "PATH TRAVERSAL - can read /etc/shadow, SSH keys!"
+        },
+        "write_file": {
+            "enabled": true,
+            "description": "Write to any file on filesystem",
+            "allowed_paths": ["*"],
+            "_vulnerability": "ARBITRARY FILE WRITE - can create backdoors!"
+        },
+        "query_database": {
+            "enabled": true,
+            "description": "Execute arbitrary SQL queries",
+            "_vulnerability": "SQL INJECTION + PLAINTEXT PASSWORD EXPOSURE!"
+        },
+        "get_user_credentials": {
+            "enabled": true,
+            "description": "Get user credentials including password",
+            "_vulnerability": "EXPOSES PLAINTEXT PASSWORDS VIA MCP!"
+        },
+        "dump_all_passwords": {
+            "enabled": true,
+            "description": "Dump all user passwords",
+            "_vulnerability": "MASS CREDENTIAL EXPOSURE!"
+        },
+        "fetch_url": {
+            "enabled": true,
+            "description": "Fetch any URL from server",
+            "allowed_protocols": ["http", "https", "file", "gopher"],
+            "_vulnerability": "SSRF - can access internal services, cloud metadata!"
+        },
+        "port_scan": {
+            "enabled": true,
+            "description": "Scan ports on any host",
+            "_vulnerability": "NETWORK RECONNAISSANCE!"
+        },
+        "get_environment": {
+            "enabled": true,
+            "description": "Get all environment variables",
+            "_vulnerability": "EXPOSES AWS KEYS, DB PASSWORDS, ALL SECRETS!"
+        },
+        "kill_process": {
+            "enabled": true,
+            "description": "Kill any process by PID",
+            "_vulnerability": "CAN KILL CRITICAL SYSTEM PROCESSES!"
+        },
+        "spawn_reverse_shell": {
+            "enabled": true,
+            "description": "Spawn reverse shell to attacker",
+            "_vulnerability": "LITERAL BACKDOOR FUNCTIONALITY!"
+        }
+    },
+
+    "database": {
+        "connection_string": "postgresql://root:password123@localhost:5432/production",
+        "store_passwords_plaintext": true,
+        "encrypt_pii": false,
+
+        "_vulnerability": "PLAINTEXT PASSWORD STORAGE!"
+    },
+
+    "exposed_endpoints": {
+        "tools_list": "/mcp/tools",
+        "invoke": "/mcp/invoke",
+        "shell": "/mcp/tools/execute_shell",
+        "database": "/mcp/tools/query_database",
+        "passwords": "/mcp/tools/dump_all_passwords",
+        "files": "/mcp/tools/read_file",
+        "environment": "/mcp/tools/get_environment",
+
+        "_vulnerability": "ALL DANGEROUS ENDPOINTS EXPOSED WITHOUT AUTH!"
+    },
+
+    "internal_services": {
+        "comment": "These should NEVER be accessible via MCP!",
+        "redis": "redis://redis.internal:6379",
+        "postgres": "postgresql://postgres.internal:5432",
+        "elasticsearch": "http://elasticsearch.internal:9200",
+        "kubernetes_api": "https://kubernetes.default.svc",
+        "cloud_metadata": "http://169.254.169.254/latest/meta-data/",
+
+        "_vulnerability": "INTERNAL SERVICES ACCESSIBLE VIA SSRF!"
+    }
+}

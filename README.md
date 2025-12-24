@@ -153,9 +153,13 @@ deathCocktail/
 │   │       ├── controller/
 │   │       │   ├── AuthController.java      # Auth bypass, SQL injection
 │   │       │   ├── FileController.java      # Path traversal, RCE
-│   │       │   └── AdminController.java     # SSRF, Command injection
+│   │       │   ├── AdminController.java     # SSRF, Command injection
+│   │       │   └── MCPController.java       # MCP endpoints without auth!
+│   │       ├── model/
+│   │       │   └── User.java                # PLAINTEXT password storage!
 │   │       ├── service/
-│   │       │   └── UserService.java         # Insecure deserialization
+│   │       │   ├── UserService.java         # Insecure deserialization
+│   │       │   └── TypoVulnerabilities.java # 20 typo-based vulns
 │   │       └── config/
 │   │           └── SecurityConfig.java      # Disabled security
 │   └── pom.xml                              # Vulnerable dependencies
@@ -167,6 +171,9 @@ deathCocktail/
 │   │   └── utils/
 │   │       └── api.js                       # Hardcoded credentials
 │   └── package.json                         # Vulnerable React/deps
+├── mcp-server/
+│   ├── server.py                            # FastMCP with dangerous tools
+│   └── mcp_config.json                      # All security disabled!
 ├── infrastructure/
 │   ├── docker-compose.yml                   # Privileged containers
 │   ├── nginx.conf                           # Misconfigurations
@@ -213,6 +220,50 @@ deathCocktail/
 | IDOR | UserController.java:78 | Direct object reference |
 | Privilege Esc | RoleService.java:23 | Missing authorization check |
 
+### MCP/FastMCP Endpoint Exposure (CWE-306, CWE-749)
+
+| Endpoint | Vulnerability | Risk |
+|----------|---------------|------|
+| `/mcp/tools` | Tool list exposed without auth | Information Disclosure |
+| `/mcp/tools/execute_shell` | Shell command execution | **RCE (CVSS 10.0)** |
+| `/mcp/tools/query_database` | Arbitrary SQL execution | SQLi + Data Leak |
+| `/mcp/tools/dump_all_passwords` | Mass credential dump | **Complete Compromise** |
+| `/mcp/tools/read_file` | Arbitrary file read | Path Traversal |
+| `/mcp/tools/get_environment` | Env vars exposed | Secrets Leak |
+| `/mcp/tools/fetch_url` | SSRF capability | Internal Access |
+| `/mcp/invoke` | Universal tool invocation | All of the above |
+
+```
+⚠️ MCP VULNERABILITY PATTERN:
+- AI models/agents can invoke dangerous tools
+- No authentication on MCP endpoints
+- No rate limiting
+- Internal services accessible via SSRF
+- Plaintext credentials returned from tools
+```
+
+### Plaintext Credential Storage (CWE-256, CWE-312)
+
+| Data Type | Storage Method | Risk |
+|-----------|----------------|------|
+| User Passwords | PLAINTEXT in DB | Complete auth compromise |
+| Credit Card Numbers | PLAINTEXT | PCI-DSS violation |
+| Social Security Numbers | PLAINTEXT | Identity theft |
+| API Keys/Tokens | PLAINTEXT | Service compromise |
+| Session Tokens | PLAINTEXT | Session hijacking |
+| MFA Secrets | PLAINTEXT | MFA bypass |
+| Password History | PLAINTEXT | Password reuse attacks |
+
+```java
+// WRONG: From User.java
+@Column(nullable = false)
+private String password;  // PLAINTEXT! NO HASHING!
+
+// SHOULD BE:
+@Column(nullable = false)
+private String passwordHash;  // BCrypt/Argon2 hash
+```
+
 ---
 
 ## 🎓 Interview Questions
@@ -223,6 +274,9 @@ deathCocktail/
 3. Identify all instances of command injection.
 4. What infrastructure misconfigurations could lead to data breach?
 5. How would you exploit the authentication bypass?
+6. **NEW**: What's wrong with the MCP endpoint configuration?
+7. **NEW**: How would you attack the `/mcp/invoke` endpoint?
+8. **NEW**: What data could be exfiltrated via the MCP tools?
 
 ### For Full-Stack Engineers
 1. What's wrong with the React version being used?
@@ -230,6 +284,17 @@ deathCocktail/
 3. Identify the SQL injection vulnerabilities.
 4. What's wrong with how environment variables are handled?
 5. Why shouldn't you commit `.env` files?
+6. **NEW**: What's wrong with how passwords are stored in User.java?
+7. **NEW**: Why is storing credit card numbers in plaintext illegal?
+8. **NEW**: How should MFA secrets be stored?
+
+### For DevOps/SRE Engineers
+1. What's wrong with the docker-compose privileged mode?
+2. Why shouldn't you mount `/var/run/docker.sock`?
+3. Identify security issues in the Kubernetes manifests.
+4. What's wrong with the Terraform security group configuration?
+5. **NEW**: Why is exposing MCP endpoints via NodePort dangerous?
+6. **NEW**: How would an attacker use SSRF to access cloud metadata?
 
 ---
 
